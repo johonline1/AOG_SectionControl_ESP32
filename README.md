@@ -1,11 +1,12 @@
 # AOG_Section_control
 
-<b>Section Control running on ESP32 for AgOpenGPS PC Software.<br><br>
+<b>Section Control running on ESP32 and also on WT32-eth01 board and IO-expander PCF8575 for AgOpenGPS PC Software.<br><br>
           
 For existing Nano boards, the Upgrade to Nano33iot, to get WiFi is a good solution. Use code for Nano33IoT in other repository.
           
 Supports: <br>- Section control, 16 sections
           <br>- hardware input switches (Main ON/OFF, OFF/Auto/ON for each section, +/- pressure (only motor driven, no rate control in V5 so far))
+          <br>- this fork detecting a PCF8575 automatically and link the lower I2C address to the pinns 0x80, 0x81 .. 0x8F and the next higher address to 0x90...
           <br>- documentation only (e.g. for machinery with hydraulic gates)
    <br>and most combinations of it
    <br>
