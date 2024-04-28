@@ -125,11 +125,7 @@ bool EEPROM_clear = false;
 byte SCToAOG[14] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0}, SCToAOGOld[14] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 
-//PCF8574 erweiterung --------------------------------------------------------------------------------
-
-
-
-
+//PCF8575 erweiterung --------------------------------------------------------------------------------
 
 //Sentence up to V4.3 -----------------------------------------------------------------------------	
 #define SCDataFromAOGHeaderV17  0xFA
@@ -192,12 +188,9 @@ unsigned long timeout, timeout2;
 #include <WebServer.h>
 #include <Server.h>
 #include <WebServer_WT32_ETH01.h>
-//#include <WebServer_WT32_ETH01.hpp>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <Wire.h>
-// PCF8574 erweiterung
-
 
 
 WebServer WiFi_Server(80);
