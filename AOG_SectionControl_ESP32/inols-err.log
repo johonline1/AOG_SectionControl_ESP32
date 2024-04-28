@@ -1,0 +1,66 @@
+
+
+
+
+
+
+
+Started logging.
+23:01:31.270740 Language server launched with arguments:
+23:01:31.270740   arg[0] = c:\Users\j\AppData\Local\Programs\Arduino IDE\resources\app\node_modules\arduino-ide-extension\build\arduino-language-server.exe
+23:01:31.270740   arg[1] = -clangd
+23:01:31.270740   arg[2] = c:\Users\j\AppData\Local\Programs\Arduino IDE\resources\app\node_modules\arduino-ide-extension\build\clangd.exe
+23:01:31.271245   arg[3] = -cli-daemon-addr
+23:01:31.271260   arg[4] = localhost:61663
+23:01:31.271260   arg[5] = -cli-daemon-instance
+23:01:31.271260   arg[6] = 1
+23:01:31.271260   arg[7] = -fqbn
+23:01:31.271260   arg[8] = esp32:esp32:wt32-eth01:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none
+23:01:31.291684   arg[9] = -skip-libraries-discovery-on-rebuild
+23:01:31.291684   arg[10] = -board-name
+23:01:31.291684   arg[11] = "WT32-ETH01 Ethernet Module"
+23:01:31.291684   arg[12] = -no-real-time-diagnostics
+23:01:31.291684   arg[13] = -log
+23:01:31.291684   arg[14] = -logpath
+23:01:31.291684   arg[15] = f:\Eigene Dateien\GitHub\AOG_SectionControl_ESP32\AOG_SectionControl_ESP32
+23:01:31.292673 logging to f:\Eigene Dateien\GitHub\AOG_SectionControl_ESP32\AOG_SectionControl_ESP32\inols.log
+23:01:31.294680 [97mLS: : Initial board configuration: esp32:esp32:wt32-eth01:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none[0m
+23:01:31.294680 [97mLS: : arduino-language-server.exe Version: 0.7.4 Commit: d620b0b Date: 2023-01-11T15:42:52Z[0m
+23:01:31.294680 [97mLS: : Language server build path: C:\Users\j\AppData\Local\Temp\arduino-language-server1924905113[0m
+23:01:31.294680 [97mLS: : Language server build sketch root: C:\Users\j\AppData\Local\Temp\arduino-language-server1924905113\sketch[0m
+23:01:31.294680 [97mLS: : Language server FULL build path: C:\Users\j\AppData\Local\Temp\arduino-language-server607204139[0m
+23:01:31.295684 IN Elapsed: 1.0038ms
+23:01:31.295684 [92mIDE --> LS REQU initialize 0[0m
+23:01:31.296702 [92m                initialize 0: [93mwrite-locked[0m[0m
+23:01:31.296702 [92m                initialize 0: [93mwrite-unlocked[0m[0m
+23:01:31.296702 [96mINIT --- : initializing workbench: file:///f%3A/Eigene%20Dateien/GitHub/AOG_SectionControl_ESP32/AOG_SectionControl_ESP32[0m
+23:01:31.296702 [96mINIT --- : [93mread-locked[0m[0m
+23:01:31.296702 [96mINIT --- : [93mread-unlocked[0m[0m
+23:01:31.297690 [92m                initialize 0: initialization parameters: {"capabilities":{"textDocumentSync":{"openClose":true,"change":2,"save":{"includeText":true}},"completionProvider":{"triggerCharacters":[".","\u003c","\u003e",":","\"","/"],"allCommitCharacters":[" ","\t","(",")","[","]","{","}","\u003c","\u003e",":",";",",","+","-","/","*","%","^","\u0026","#","?",".","=","\"","'","|"],"completionItem":{}},"hoverProvider":{},"signatureHelpProvider":{"triggerCharacters":["(",","]},"definitionProvider":{},"documentHighlightProvider":{},"documentSymbolProvider":{},"codeActionProvider":{"codeActionKinds":["quickfix","refactor","info"]},"documentFormattingProvider":{},"documentRangeFormattingProvider":{},"documentOnTypeFormattingProvider":{"firstTriggerCharacter":"\n"},"renameProvider":{},"executeCommandProvider":{"commands":["clangd.applyFix","clangd.applyTweak"]},"workspaceSymbolProvider":{}},"serverInfo":{"name":"arduino-language-server","version":"0.7.4"}}[0m
+23:01:31.297690 [32mIDE <-- LS RESP initialize 0[0m
+23:01:31.297690 OUT Elapsed: 0s
+23:01:31.303710 IN Elapsed: 6.0203ms
+23:01:31.303710 [92mIDE --> LS NOTIF initialized[0m
+23:01:31.303710 [92m                 initialized: Notification is not propagated to clangd[0m
+23:01:31.303710 IN Elapsed: 0s
+23:01:31.304715 [92mIDE --> LS NOTIF textDocument/didOpen[0m
+23:01:31.305717 [92m                 textDocument/didOpen: [93mwrite-locked[0m[0m
+23:01:31.305717 [92m                 textDocument/didOpen: (throttled: waiting for clangd)[0m
+23:01:31.305717 [92m                 textDocument/didOpen: [93munlocked (waiting clangd)[0m[0m
+23:01:31.600274 [96mINIT --- : Running build with: {
+  "instance": {
+    "id": 1
+  },
+  "fqbn": "esp32:esp32:wt32-eth01:PartitionScheme=default,FlashMode=qio,FlashFreq=80,UploadSpeed=921600,DebugLevel=none,EraseFlash=none",
+  "sketch_path": "F:\\Eigene Dateien\\GitHub\\AOG_SectionControl_ESP32\\AOG_SectionControl_ESP32",
+  "build_path": "C:\\Users\\j\\AppData\\Local\\Temp\\arduino-language-server607204139",
+  "verbose": true,
+  "create_compilation_database_only": true
+}[0m
+23:01:31.612756 [96mINIT --- : build stdout:[0m
+23:01:31.612756 [96mINIT --- : [0m
+23:01:31.612756 [96mINIT --- : build stderr:[0m
+23:01:31.612756 [96mINIT --- : [0m
+23:01:31.613274 [96mINIT --- : error starting clang: error running compile: rpc error: code = NotFound desc = Cannot find build path: Rel: can't make C:\Users\j\AppData\Local\Temp\arduino-language-server607204139 relative to F:\Eigene Dateien\GitHub\AOG_SectionControl_ESP32\AOG_SectionControl_ESP32[0m
+23:01:31.613274 [92m                 textDocument/didOpen: [93mlocked (waiting clangd)[0m[0m
+23:01:31.613274 [92m                 textDocument/didOpen: clangd startup failed: quitting Language server[0m

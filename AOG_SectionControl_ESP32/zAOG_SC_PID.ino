@@ -120,7 +120,7 @@ void Core1code(void * pvParameters) {
 
 		} //end of timed loop
 
-		//****************************************************************************************
+		// ****************************************************************************************
 		//This runs continuously, outside of the timed loop, keeps checking UART for new data
 		// header high/low, relay byte, speed byte, rateSetPoint hi/lo
 
@@ -167,7 +167,7 @@ float lastError = 0, lastLastError = 0, integrated_error = 0, dError = 0;
 void calcRatePID(void) {
 	//Proportional
 	pValue = 0.35 * rateErrorLeft;// *Ko;
-								  /*
+								  // *
 								  //Integral
 								  integrated_error = integrated_error + rateError;
 								  if (integrated_error > maxIntErr) integrated_error = maxIntErr;

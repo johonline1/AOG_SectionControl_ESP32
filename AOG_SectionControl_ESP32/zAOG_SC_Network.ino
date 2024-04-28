@@ -1,14 +1,12 @@
 // WIFI handling 7. Maerz 2021 for ESP32  -------------------------------------------
 
 void WiFi_handle_connection(void* pvParameters) {
-    task_WiFiConnectRunning = true;
-    if (Set.DataTransVia > 10) { vTaskDelay(5000); } //start Ethernet first, if needed for data transfer
+    if (Set.DataTransVia > 10) { vTaskDelay(5000); } //start Ethernet first, if needed for data transfer(Set.DataTransVia == 9) { WiFi_connect_step = 2 }  //start WT32_ETH1
     for (;;) {
         if (WiFi_connect_step == 0) {
-            task_WiFiConnectRunning = false;
             if (Set.debugmode) { Serial.println("closing WiFi connection task"); }
             delay(1);
-            vTaskDelete(NULL);
+            vTaskDelete(NULL); 
             delay(1);
         }
         else {
@@ -17,48 +15,73 @@ void WiFi_handle_connection(void* pvParameters) {
             now = millis();
 
             IPAddress gwIP, myIP;
-
+            
             if (Set.debugmode) { Serial.print("WiFi_connect_step: "); Serial.println(WiFi_connect_step); }
             switch (WiFi_connect_step) {
-            case 1:
-                //check WiFi
-                if (Ping.ping(Set.WiFi_gwip)) { //WiFi is available, retry to connect NTRIP
-                //    Ntrip_restart = 1;
-                    WiFi_connect_step = 0;
-                    /*      if ((Set.NtripClientBy == 2) && (!task_NTRIP_Client_running)) {
-                              {
-                                  xTaskCreatePinnedToCore(NTRIP_Client_Code, "Core1", 3072, NULL, 1, &taskHandle_WiFi_NTRIP, 1);
-                                  delay(500);
-                              }
-                          }*/
-                }
-                else { WiFi_connect_step = 4; }//no network
-                break;
-                //close Webserver, UDP ...
-            case 4:
-                WiFi_netw_nr = 0;
-                if (WebIORunning) {
-                    WiFi_Server.close();
-                    WebIORunning = false;
-                }
-                WiFiUDPRunning = false;
+                //init WT32_ETH1
+            case 2:
+                if (ETH_network_search_timeout == 0) {   //first run                 
+                    ETH_network_search_timeout = now + (Set.timeoutRouter * 1000);
+                } 
+                WT32_ETH01_onEvent();
+                Serial.println("Starting WT32 Ethernet");
                 WiFi_connect_step++;
                 break;
-                //turn WiFi off
-            case 5:
-                WiFi.mode(WIFI_OFF);
-                WiFi_network_search_timeout = 0;
-                WiFi_connect_step = 10;
+                //start WT32_ETH1
+            case 3:
+                ETH.begin(ETH_PHY_ADDR, ETH_PHY_POWER);
+                WiFi_connect_step++;
                 break;
-
+                //wait  WT32_ETH1
+            case 4:
+                if (!WT32_ETH01_eth_connected) {
+                    if (now > ETH_network_search_timeout) {
+                        ETH_network_search_timeout = 0;
+                        WiFi_connect_step = 10;
+                        Serial.println("No Ethernet at WT32!");
+                    }
+                } else {  
+                    Serial.println();
+                    Serial.println("Ethernet Client successfully connected");
+                    Serial.print("Connected Ethernet IP - Address : ");
+                    myIP = ETH.localIP();
+                    Serial.println(myIP);
+                    WiFi_connect_step++;
+                }
+                break;
+                //config WT32_ETH1
+            case 5:
+                myIP = ETH.localIP();
+                myIP[3] = Set.Eth_myip[3];
+                Serial.print("changing Ethernet IP to: ");
+                Serial.println(myIP);
+                gwIP = ETH.gatewayIP();
+                if (!ETH.config(myIP, gwIP, Set.mask, gwIP)) { Serial.println("Ethernet failed to configure"); }
+                WiFi_connect_step++;
+                break;
                 //WiFi network scan
+            case 6:
+                myIP = ETH.localIP();
+                Serial.print("Connected IP - Address : "); Serial.println(myIP);
+                WiFi_ipDestination = myIP;
+                WiFi_ipDestination[3] = Set.Eth_ipDest_ending;
+                Serial.print("sending to IP - Address : "); Serial.println(WiFi_ipDestination);
+                gwIP = ETH.gatewayIP();
+                Serial.print("Gateway IP - Address : "); Serial.println(gwIP);
+                WiFi_connect_step = 20;
+                break;
             case 10:
                 WiFi_netw_nr = 0;
                 WebIORunning = false;
                 WiFiUDPRunning = false;
+                if ((Set.DataTransVia == 9) && (ETH_network_search_timeout == 0)) {
+                    if (Set.debugmode) { Serial.println("WT32_Eth01 connect to Ethernet!"); }
+                    WiFi_connect_step = 2;
+                    break;
+                }               
                 if (WiFi_network_search_timeout == 0) {   //first run                 
                     WiFi_network_search_timeout = now + (Set.timeoutRouter * 1000);
-                }
+                } 
                 WiFi_scan_networks();
                 //timeout?
                 if (now > WiFi_network_search_timeout) { WiFi_connect_step = 50; }
@@ -144,33 +167,31 @@ void WiFi_handle_connection(void* pvParameters) {
                 break;
 
                 //UDP
-            case 20://init WiFi UDP listening to AOG
-                if (WiFiUDPFromAOG.listen(Set.PortFromAOG)) {
+            case 20://init WiFi UDP sending to AOG
+                if (WiFiUDPToAOG.begin(Set.PortSCToAOG))
+                {
                     Serial.print("UDP writing to IP: ");
                     Serial.println(WiFi_ipDestination);
                     Serial.print("UDP writing to port: ");
                     Serial.println(Set.PortDestination);
                     Serial.print("UDP writing from port: ");
                     Serial.println(Set.PortSCToAOG);
-                    Serial.print("UDP listening to AOG port: ");
-                    Serial.println(Set.PortFromAOG);
                 }
-                else { Serial.println("Error starting WiFi UDP "); }
+                else { Serial.println("Error starting UDP"); }
                 WiFi_connect_step++;
                 break;
             case 21:
-                // UDP message from AgIO packet handling
-                WiFiUDPFromAOG.onPacket([](AsyncUDPPacket packet)
-                    {//write data into array
-                        unsigned int packetLength;
-                        byte nextincommingBytesArrayNr = (incommingBytesArrayNr + 1) % incommingDataArraySize;
-                        for (unsigned int i = 0; i < packet.length(); i++) {
-                            incommingBytes[nextincommingBytesArrayNr][i] = packet.data()[i];
-                        }
-                        incommingDataLength[nextincommingBytesArrayNr] = packet.length();
-                        incommingBytesArrayNr = nextincommingBytesArrayNr;
-                    });  // end of onPacket call
-                WiFiUDPRunning = true;
+                //init WiFi UPD listening to AOG 
+                if (WiFiUDPFromAOG.begin(Set.PortFromAOG))
+                {
+                    Serial.print("WiFi UDP Listening for AOG data to port: ");
+                    Serial.println(Set.PortFromAOG);
+                    Serial.println();
+                    WiFiUDPRunning = true;
+                }
+                else { Serial.println("Error starting UDP"); }
+                delay(2);
+
                 WiFi_connect_step = 100;
                 break;
 
@@ -182,32 +203,23 @@ void WiFi_handle_connection(void* pvParameters) {
             case 51:
                 if (my_WiFi_Mode == 2) { WiFi_connect_step++; }
                 break;
-            case 52://init WiFi UDP listening to AOG
-                if (WiFiUDPToAOG.listen(Set.PortSCToAOG)) {
-                    Serial.print("UDP writing to IP: ");
-                    Serial.println(WiFi_ipDestination);
-                    Serial.print("UDP writing to port: ");
-                    Serial.println(Set.PortDestination);
-                    Serial.print("UDP writing from port: ");
-                    Serial.println(Set.PortSCToAOG);
-                    Serial.print("UDP listening to port: ");
-                    Serial.println(Set.PortFromAOG);
-                }
-                else { Serial.println("Error starting WiFi UDP"); }
+            case 52://init WiFi UDP sending to AOG
+                WiFiUDPToAOG.begin(Set.PortSCToAOG);
+                Serial.print("UDP writing to IP: ");
+                Serial.println(WiFi_ipDestination);
+                Serial.print("UDP writing to port: ");
+                Serial.println(Set.PortDestination);
+                Serial.print("UDP writing from port: ");
+                Serial.println(Set.PortSCToAOG);
                 WiFi_connect_step++;
                 break;
             case 53:
-                // UDP message from AgIO packet handling
-                WiFiUDPFromAOG.onPacket([](AsyncUDPPacket packet)
-                    {//write data into array
-                        unsigned int packetLength;
-                        byte nextincommingBytesArrayNr = (incommingBytesArrayNr + 1) % incommingDataArraySize;
-                        for (unsigned int i = 0; i < packet.length(); i++) {
-                            incommingBytes[nextincommingBytesArrayNr][i] = packet.data()[i];
-                        }
-                        incommingDataLength[nextincommingBytesArrayNr] = packet.length();
-                        incommingBytesArrayNr = nextincommingBytesArrayNr;
-                    });  // end of onPacket call
+                //init WiFi UPD listening to AOG 
+                WiFiUDPFromAOG.begin(Set.PortFromAOG);
+                Serial.print("NTRIP WiFi UDP Listening to port: ");
+                Serial.println(Set.PortFromAOG);
+                Serial.println();
+                delay(2);
                 WiFiUDPRunning = true;
                 WiFi_connect_step = 100;
                 break;
@@ -222,12 +234,17 @@ void WiFi_handle_connection(void* pvParameters) {
             case 101:
                 WebIOTimeOut = millis() + (long(Set.timeoutWebIO) * 60000);
                 xTaskCreate(doWebinterface, "WebIOHandle", 5000, NULL, 1, &taskHandle_WebIO);
-                delay(300);
+                delay(300);                
                 WiFi_connect_step = 0;
                 LED_WIFI_ON = true;
                 Serial.println(); Serial.println();
-                if (WiFi_netw_nr == 0) { myIP = WiFi.softAPIP(); }
-                else {
+                if (WiFi_netw_nr == 0) {
+                    if (Set.DataTransVia == 9) {
+                        myIP = ETH.localIP();
+                    } else {
+                        myIP = WiFi.softAPIP(); 
+                    }
+                } else {
                     myIP = WiFi.localIP();
                 }
 
@@ -237,16 +254,16 @@ void WiFi_handle_connection(void* pvParameters) {
                 }
                 Serial.println(myIP[3]);
                 Serial.println("type IP in Internet browser to get to webinterface");
-                Serial.print("you need to be in WiFi network ");
+                Serial.print("you need to be in WiFi / Ethernet network ");
                 switch (WiFi_netw_nr) {
                 case 0: Serial.print(Set.ssid_ap); break;
                 case 1: Serial.print(Set.ssid1); break;
                 }
                 Serial.println(" to get access"); Serial.println(); Serial.println();
 #if useLED_BUILTIN
-                digitalWrite(LED_BUILTIN, HIGH);
+                _digitalWrite(LED_BUILTIN, HIGH);
 #endif
-                digitalWrite(Set.LEDWiFi_PIN, Set.LEDWiFi_ON_Level);
+                _digitalWrite(Set.LEDWiFi_PIN, Set.LEDWiFi_ON_Level);
                 break;
 
             default:
@@ -374,7 +391,6 @@ void WiFi_Start_AP() {
     my_WiFi_Mode = WIFI_AP;
 }
 
-
 //=================================================================================================
 //Ethernet handling for ESP32 14. Feb 2021
 //-------------------------------------------------------------------------------------------------
@@ -383,18 +399,9 @@ void Eth_handle_connection(void* pvParameters) {
     if (Set.debugmode) { Serial.println("started new task: Ethernet handle connection"); }
 
     for (;;) { // MAIN LOOP
-        if (Eth_connect_step == 0) {
-            if (Set.debugmode) { Serial.println("closing Ethernet connection task"); }
-            delay(1);
-            vTaskDelete(NULL);
-            delay(1);
-        }
-        else {
-            vTaskDelay(400);//do every half second
-
-            now = millis();
-
-            if (Set.debugmode) { Serial.print("Ethernet connection step: "); Serial.println(Eth_connect_step); }
+        vTaskDelay(350);
+        if (Set.debugmode) { Serial.print("Ethernet connection step: "); Serial.println(Eth_connect_step); }
+        if (Eth_connect_step > 0) {
             switch (Eth_connect_step) {
             case 10:
                 Ethernet.init(Set.Eth_CS_PIN);
@@ -415,6 +422,10 @@ void Eth_handle_connection(void* pvParameters) {
                     if (Set.DataTransVia == 10) {
                         Set.DataTransVia = 7; //change DataTransfer to WiFi                                                            
                         if (EthDataTaskRunning) { vTaskDelete(taskHandle_DataFromAOGEth); delay(5); EthDataTaskRunning = false; }
+                        if (!WiFiDataTaskRunning) {
+                            xTaskCreate(getDataFromAOGWiFi, "DataFromAOGHandleWiFi", 5000, NULL, 1, &taskHandle_DataFromAOGWiFi);
+                            delay(500);
+                        }//start WiFi if not running
                     }
                 }
                 else {
@@ -423,29 +434,14 @@ void Eth_handle_connection(void* pvParameters) {
                 }
                 break;
             case 13:
-                if (Ethernet.linkStatus() != LinkON) {
-                    Serial.println("Ethernet cable is not connected. Retrying in 5 Sek.");
-                    now = millis();
-                    if (Eth_network_search_timeout == 0) { Eth_network_search_timeout = now + (Set.timeoutRouterEth * 1000); }
-                    if ((Set.timeoutRouterEth != 255) && (Eth_network_search_timeout < now)) {
-                        Set.DataTransVia = 7;
-                        Serial.print("no Ethernet connection for "); Serial.print(Set.timeoutRouterEth); Serial.println("s, data transfer now via WiFi");
-                        Eth_connect_step = 255;//no Ethernet, end Ethernet
-                    }
-                    vTaskDelay(5000);
-                }
-                else { Serial.println("Ethernet status OK"); Eth_connect_step++; }
-                break;
-
-/*
                 if (Ethernet.linkStatus() == LinkOFF) {
                     Serial.println("Ethernet cable is not connected. Retrying in 5 Sek.");
                     vTaskDelay(5000);
                 }
                 else { Serial.println("Ethernet status OK"); Eth_connect_step++; }
-                break;*/
+                break;
             case 14:
-                Serial.print("Got IP for Ethernet ");
+                Serial.print("Got IP ");
                 Serial.println(Ethernet.localIP());
                 if ((Ethernet.localIP()[0] == 0) && (Ethernet.localIP()[1] == 0) && (Ethernet.localIP()[2] == 0) && (Ethernet.localIP()[3] == 0)) {
                     //got IP 0.0.0.0 = no DCHP so use static IP
@@ -488,13 +484,6 @@ void Eth_handle_connection(void* pvParameters) {
                     Serial.println(Set.PortFromAOG);
                     EthUDPRunning = true;
                 }
-                Eth_connect_step++;
-                break;
-            case 17:
-                if (!EthDataTaskRunning) {
-                    xTaskCreate(getDataFromAOGEth, "DataFromAOGHandleEth", 5000, NULL, 1, &taskHandle_DataFromAOGEth);
-                    delay(500);
-                }
                 Eth_connect_step = 0;//done
                 break;
 
@@ -502,44 +491,65 @@ void Eth_handle_connection(void* pvParameters) {
                 Eth_connect_step++;
                 break;
             }//switch
+        }    
+        if ((Eth_connect_step > 240) || (Eth_connect_step == 0)) {
+            Serial.println("closing Ethernet connection task");
+            delay(1);
+            vTaskDelete(NULL);
+            delay(1);
         }
     }
 }
 
 //-------------------------------------------------------------------------------------------------
-// Server Index Page for OTA update. Apr 2023
+// Server Index Page for OTA update
 //-------------------------------------------------------------------------------------------------
 
+
 const char* serverIndex =
-"<body style='font-family: Verdana,sans-serif; font-size: 14px;'>"
-"<div style='width:400px;padding:20px;border-radius:10px;border:solid 2px #e0e0e0;margin:auto;margin-top:20px;'>"
-"<div style='width:100%;text-align:center;font-size:18px;font-weight:bold;margin-bottom:12px;'>ESP32 firmware update</div>"
-"<div style='width:100%;text-align:center;font-size:10px;margin-bottom:12px;'>Version 7. Apr. 2023</div>"
-"<form method='POST' action='#' enctype='multipart/form-data' id='upload-form' style='width:100%;margin-bottom:8px;'>"
+"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+"<head>"
+"<title>Firmware updater</title>"
+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0;\" />\r\n""<style>divbox {background-color: lightgrey;width: 200px;border: 5px solid red;padding:10px;margin: 10px;}</style>"
+"</head>"
+"<body bgcolor=\"#ccff66\">""<font color=\"#000000\" face=\"VERDANA,ARIAL,HELVETICA\">"
+"<h1>ESP firmware update</h1>"
+"ver 4.3 - 10. Mai. 2020<br><br>"
+"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+"<br>Create a .bin file with Arduino IDE: Sketch -> Export compiled Binary<br>"
+"<br><b>select .bin file to upload</b>"
+"<br>"
+"<br>"
 "<input type='file' name='update'>"
-"<input type='submit' value='Update' style='float:right;'>"
+"<input type='submit' value='Update'>"
 "</form>"
-"<div style='width:100%;background-color:#e0e0e0;border-radius:8px;'>"
-"<div id='prg' style='width:0%;background-color:#2196F3;padding:2px;border-radius:8px;color:white;text-align:center;'>0%</div>"
-"</div>"
-"</div>"
-"</body>"
+"<div id='prg'>progress: 0%</div>"
 "<script>"
-"var prg = document.getElementById('prg');"
-"var form = document.getElementById('upload-form');"
-"form.addEventListener('submit', e=>{"
+"$('form').submit(function(e){"
 "e.preventDefault();"
+"var form = $('#upload_form')[0];"
 "var data = new FormData(form);"
-"var req = new XMLHttpRequest();"
-"req.open('POST', '/update');"
-"req.upload.addEventListener('progress', p=>{"
-"let w = Math.round((p.loaded / p.total)*100) + '%';"
-"if(p.lengthComputable){"
-"prg.innerHTML = w;"
-"prg.style.width = w;"
+" $.ajax({"
+"url: '/update',"
+"type: 'POST',"
+"data: data,"
+"contentType: false,"
+"processData:false,"
+"xhr: function() {"
+"var xhr = new window.XMLHttpRequest();"
+"xhr.upload.addEventListener('progress', function(evt) {"
+"if (evt.lengthComputable) {"
+"var per = evt.loaded / evt.total;"
+"$('#prg').html('progress: ' + Math.round(per*100) + '%');"
 "}"
-"if(w == '100%') prg.style.backgroundColor = '#04AA6D';"
+"}, false);"
+"return xhr;"
+"},"
+"success:function(d, s) {"
+"console.log('success!')"
+"},"
+"error: function (a, b, c) {"
+"}"
 "});"
-"req.send(data);"
 "});"
 "</script>";
